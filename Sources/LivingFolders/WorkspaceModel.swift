@@ -83,14 +83,16 @@ final class WorkspaceModel {
 
     // MARK: Folder
 
-    func chooseFolder() {
+    func chooseFolder(creating: Bool = false) {
         guard !isMoving else { return }
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        panel.directoryURL = root
         panel.prompt = "Open"
-        panel.message = "Choose the folder Living Folders should work inside."
+        panel.message = creating ? "Use New Folder to create a folder, then open it." : "Choose the folder Living Folders should work inside."
         if panel.runModal() == .OK, let url = panel.url { open(url) }
     }
 

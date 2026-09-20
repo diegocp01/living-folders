@@ -72,9 +72,7 @@ private struct MockupFileIcon: View {
     var body: some View {
         Group {
             if item.isDirectory {
-                Image(systemName: "folder.fill")
-                    .font(.system(size: 42))
-                    .foregroundStyle(.linearGradient(colors: [Color(red: 0.51, green: 0.81, blue: 0.95), Color(red: 0.32, green: 0.67, blue: 0.85)], startPoint: .top, endPoint: .bottom))
+                FolderGlyph()
                     .frame(width: 46, height: 53)
             } else {
                 ZStack(alignment: .bottom) {

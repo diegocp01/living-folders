@@ -7,13 +7,24 @@ struct WorkspaceView: View {
     var body: some View {
         VStack(spacing: 0) {
             TopBar(model: model).disabled(model.isMoving)
+            PromptBar(model: model)
+                .frame(maxWidth: 820)
+                .padding(.horizontal, 28)
+                .padding(.vertical, 20)
+            Divider().overlay(Color.white.opacity(0.3))
             CardField(model: model)
                 .padding(.horizontal, 22)
-                .padding(.top, 8)
-            PromptBar(model: model)
-                .padding(.horizontal, 22)
-                .padding(.top, 18)
-                .padding(.bottom, 20)
+                .padding(.vertical, 16)
+            HStack {
+                Text("\(model.items.count) files · \(model.gathered.count) gathered")
+                Spacer()
+                Text("Preview first · Move only after approval")
+            }
+            .font(.system(size: 10))
+            .foregroundStyle(Theme.secondary)
+            .padding(.horizontal, 22)
+            .padding(.vertical, 10)
+            .background(Color.white.opacity(0.08))
         }
         .overlay(alignment: .top) { ToastView(toast: model.toast).padding(.top, 18) }
         .sheet(isPresented: Binding(get: { model.plan != nil }, set: { if !$0 { model.plan = nil } })) {
@@ -41,10 +52,17 @@ private struct TopBar: View {
                 }
                 .font(.system(size: 12.5, weight: .medium))
                 .lineLimit(1)
-                Button("Change…") { model.chooseFolder() }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Theme.secondary)
+                Menu {
+                    Button("Open folder…") { model.chooseFolder() }
+                    Button("Create folder…") { model.chooseFolder(creating: true) }
+                    Divider()
+                    Button("Rescan folder") { model.rescan() }
+                } label: {
+                    Image(systemName: "chevron.down")
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .help("Folder options")
             }
             Spacer()
             Text("\(model.items.count) items")
@@ -88,11 +106,11 @@ private struct CardField: View {
             let desktopWidth = width - folderWidth - gap
             let scattered = model.scattered
             let gathered = model.gathered
-            let height = max(geo.size.height, Layout.height(count: scattered.count, width: desktopWidth - 20) + 20,
+            let height = max(geo.size.height, Layout.height(count: scattered.count, width: desktopWidth - 20) + 40,
                              Layout.height(count: gathered.count, width: folderWidth - 28) + 96)
             let desktopRect = CGRect(x: 0, y: 0, width: desktopWidth, height: height)
             let folderRect = CGRect(x: width - folderWidth, y: 0, width: folderWidth, height: height)
-            let desktopLayout = Layout.grid(count: scattered.count, in: desktopRect.insetBy(dx: 10, dy: 10))
+            let desktopLayout = Layout.grid(count: scattered.count, in: CGRect(x: 10, y: 30, width: desktopWidth - 20, height: height - 40))
             let folderLayout = Layout.grid(count: gathered.count, in: CGRect(x: folderRect.minX + 14, y: 78, width: folderWidth - 28, height: height - 96))
             let positions = Dictionary(uniqueKeysWithValues:
                 zip(scattered, desktopLayout.points).map { ($0.id, $1) } + zip(gathered, folderLayout.points).map { ($0.id, $1) })
@@ -101,6 +119,15 @@ private struct CardField: View {
                 ZStack(alignment: .topLeading) {
                     DesktopZone(isEmpty: scattered.isEmpty && !model.items.isEmpty, hasItems: !model.items.isEmpty)
                         .frame(width: desktopRect.width, height: height)
+                    HStack {
+                        Text("All files")
+                        Spacer()
+                        Text("\(scattered.count) scattered")
+                    }
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.secondary)
+                    .frame(width: desktopWidth - 20)
+                    .offset(x: 10)
                     FolderZone(model: model, count: gathered.count)
                         .frame(width: folderWidth, height: height)
                         .offset(x: folderRect.minX)
@@ -153,9 +180,7 @@ private struct DesktopZone: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .fill(Color.white.opacity(0.35))
-                .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous).strokeBorder(Theme.hairline.opacity(0.7), lineWidth: 1))
+            Color.clear
             if !hasItems {
                 Text("This folder is empty.")
                     .font(.system(size: 13))
@@ -175,14 +200,15 @@ private struct FolderZone: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack {
+                FolderGlyph().frame(width: 23, height: 20)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(model.folderTitle)
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(Theme.ink)
                         .lineLimit(1)
                         .truncationMode(.tail)
-                    Text(count == 0 ? "Waiting for a name" : "\(count) \(count == 1 ? "item" : "items") · will be created inside \(model.root?.lastPathComponent ?? "")")
+                    Text(count == 0 ? "Waiting for a name" : "\(count) matches")
                         .font(.system(size: 11.5))
                         .foregroundStyle(Theme.secondary)
                         .lineLimit(1)
@@ -191,10 +217,15 @@ private struct FolderZone: View {
                 if model.isThinking { ThinkingDots() }
             }
             .padding(.horizontal, 20)
-            .padding(.top, 20)
+            .frame(height: 60)
+            Divider().overlay(Color.white.opacity(0.3))
             Spacer()
             if count == 0 {
-                Text("Files gather here as you type.\nApprove to create the folder for real.")
+                VStack(spacing: 18) {
+                    FolderGlyph().frame(width: 52, height: 44).opacity(0.65)
+                    Text("A little room for your next idea.")
+                    Text("Start with a name above.")
+                }
                     .font(.system(size: 12.5))
                     .foregroundStyle(Theme.tertiary)
                     .multilineTextAlignment(.center)
@@ -204,7 +235,11 @@ private struct FolderZone: View {
             }
             Spacer()
         }
-        .panel(radius: 26, fill: Color.white.opacity(model.isThinking ? 0.65 : 0.5), stroke: model.isThinking ? Theme.accent.opacity(0.35) : Theme.hairlineStrong)
+        .panel(radius: 14, fill: Color.white.opacity(model.isThinking ? 0.25 : 0.16), stroke: Color.white.opacity(0.65))
+        .padding(.top, 16)
+        .background(alignment: .topLeading) {
+            FolderTab().fill(Color.white.opacity(0.3)).frame(width: 110, height: 24)
+        }
         .shadow(color: Theme.accent.opacity(model.isThinking ? 0.12 : 0), radius: 30)
         .animation(Theme.soft, value: model.isThinking)
         .animation(Theme.soft, value: count == 0)

@@ -4,21 +4,13 @@ import UniformTypeIdentifiers
 struct WelcomeView: View {
     @Bindable var model: WorkspaceModel
     @State private var dropping = false
+    @State private var mouse: CGPoint?
+    @State private var mouseArea: CGSize = .zero
 
     var body: some View {
         VStack(spacing: 0) {
             Spacer()
-            VStack(spacing: 14) {
-                Text("Living Folders")
-                    .font(.system(size: 38, weight: .light))
-                    .tracking(-0.5)
-                    .foregroundStyle(Theme.ink)
-                Text("Open a folder. Name what you want.\nWatch it fill, then approve the move.")
-                    .font(.system(size: 14.5))
-                    .foregroundStyle(Theme.secondary)
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(3)
-            }
+            LivingLogo(mouse: mouse, area: mouseArea)
             Button("Open Folder…") { model.chooseFolder() }
                 .buttonStyle(PillButtonStyle(prominent: true))
                 .keyboardShortcut("o", modifiers: .command)
@@ -69,6 +61,7 @@ struct WelcomeView: View {
                 .padding(.bottom, 18)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(MouseTracker(point: $mouse, area: $mouseArea))
         .overlay(
             RoundedRectangle(cornerRadius: 26, style: .continuous)
                 .strokeBorder(Theme.accent.opacity(dropping ? 0.6 : 0), lineWidth: 1.5)

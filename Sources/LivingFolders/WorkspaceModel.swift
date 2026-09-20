@@ -35,6 +35,9 @@ final class WorkspaceModel {
         }
         return gathering.status
     }
+    /// True when a key is available from .env, environment, or Keychain.
+    var hasAPIKey: Bool { apiKey != nil }
+
     var mode: ClassificationMode {
         if apiKey == nil { return .missingKey }
         if gathering.error != nil { return .unavailable }

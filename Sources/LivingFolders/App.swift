@@ -16,8 +16,16 @@ struct LivingFoldersApp: App {
             }
             .animation(Theme.soft, value: model.root == nil)
             .frame(minWidth: 940, minHeight: 620)
-            .preferredColorScheme(.dark)
-            .onAppear { NSApp.setActivationPolicy(.regular); NSApp.activate(ignoringOtherApps: true) }
+            .preferredColorScheme(.light)
+            .onAppear {
+                NSApp.setActivationPolicy(.regular)
+                NSApp.activate(ignoringOtherApps: true)
+                // Frosted 50%-transparent window, like the original mockup.
+                if let window = NSApp.windows.first {
+                    window.isOpaque = false
+                    window.backgroundColor = .clear
+                }
+            }
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1180, height: 760)

@@ -46,7 +46,7 @@ struct FileCard: View {
         .frame(width: Self.size.width, height: Self.size.height)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.white.opacity(hovering ? 0.07 : 0))
+                .fill(Color.black.opacity(hovering ? 0.05 : 0))
         )
         .scaleEffect(scale * (hovering ? 1.04 : 1))
         .animation(Theme.soft, value: hovering)

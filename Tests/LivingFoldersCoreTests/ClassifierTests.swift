@@ -51,8 +51,8 @@ final class ClassifierTests: XCTestCase {
         let payload = JevClassifier.payload(folderName: "Taxes", items: items)
         XCTAssertEqual(payload["model"] as? String, "jev-latest")
         XCTAssertEqual((payload["questions"] as? [String: Any])?.count, 2)
-        let parsed = try JevClassifier.parse(items: items, result: ["answers": [items[0].id: ["noul": 0.9], items[1].id: ["noul": 0.2]]])
+        let parsed = try JevClassifier.parse(items: items, result: ["answers": ["0": ["noul": 0.9], "1": ["noul": 0.2]]])
         XCTAssertEqual(parsed.map(\.belongs), [true, false])
-        XCTAssertThrowsError(try JevClassifier.parse(items: items, result: ["answers": [items[0].id: ["noul": 1.4]]]))
+        XCTAssertThrowsError(try JevClassifier.parse(items: items, result: ["answers": ["0": ["noul": 1.4]]]))
     }
 }

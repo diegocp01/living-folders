@@ -38,7 +38,6 @@ build_from_source() {
   swift build -c "$CONFIG" --product LivingFolders
   local bin
   bin="$(swift build -c "$CONFIG" --show-bin-path)/LivingFolders"
-  rm -rf "$APP"
   mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
   cp "$bin" "$APP/Contents/MacOS/LivingFolders"
   cp Resources/Info.plist "$APP/Contents/Info.plist"

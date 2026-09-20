@@ -7,16 +7,18 @@ public struct FileItem: Identifiable, Hashable, Sendable {
     public let isDirectory: Bool
     public let size: Int64
     public let modified: Date
+    public let fileIdentity: String?
 
     public var id: String { url.path }
 
-    public init(url: URL, name: String, ext: String, isDirectory: Bool, size: Int64, modified: Date) {
+    public init(url: URL, name: String, ext: String, isDirectory: Bool, size: Int64, modified: Date, fileIdentity: String? = nil) {
         self.url = url
         self.name = name
         self.ext = ext
         self.isDirectory = isDirectory
         self.size = size
         self.modified = modified
+        self.fileIdentity = fileIdentity
     }
 }
 

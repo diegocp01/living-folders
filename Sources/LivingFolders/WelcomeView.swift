@@ -70,6 +70,7 @@ struct WelcomeView: View {
                 .padding(.bottom, 18)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background { WelcomeConstellation() }
         .background(MouseTracker(point: $mouse, area: $mouseArea))
         .overlay(
             RoundedRectangle(cornerRadius: 26, style: .continuous)

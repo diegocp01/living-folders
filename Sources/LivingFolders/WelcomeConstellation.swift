@@ -21,17 +21,8 @@ struct WelcomeConstellation: View {
 
     private func field(time: TimeInterval) -> some View {
         Canvas { context, size in
-            let band = min(220.0, size.width * 0.22)
-            let span = max(0, size.height - 150)
             for side in 0..<2 {
-                let points: [CGPoint] = (0..<16).map { index in
-                    let seed = Double(index)
-                    let phase = seed * 2.39996 + Double(side) * 1.7
-                    let fraction = Double((index * 7) % 17) / 17
-                    let x = 22 + fraction * max(0, band - 44) + sin(time * 0.035 + phase) * 9
-                    let y = 75 + Double(index) / 15 * span + cos(time * 0.027 + phase) * 12
-                    return CGPoint(x: side == 0 ? x : size.width - x, y: y)
-                }
+                let points = positions(size: size, side: side, time: time)
                 for index in points.indices {
                     let point = points[index]
                     for next in (index + 1)..<points.count {
@@ -41,14 +32,30 @@ struct WelcomeConstellation: View {
                             var line = Path()
                             line.move(to: point)
                             line.addLine(to: other)
-                            context.stroke(line, with: .color(Theme.accent.opacity(0.12 * (1 - distance / 115))), lineWidth: 0.7)
+                            let opacity = 0.12 * (1 - Double(distance) / 115)
+                            context.stroke(line, with: .color(Theme.accent.opacity(opacity)), lineWidth: 0.7)
                         }
                     }
-                    let radius = index.isMultiple(of: 4) ? 2.2 : 1.5
+                    let radius: CGFloat = index.isMultiple(of: 4) ? 2.2 : 1.5
                     let dot = CGRect(x: point.x - radius, y: point.y - radius, width: radius * 2, height: radius * 2)
                     context.fill(Path(ellipseIn: dot), with: .color(Theme.accent.opacity(0.20)))
                 }
             }
+        }
+    }
+
+    private func positions(size: CGSize, side: Int, time: TimeInterval) -> [CGPoint] {
+        let width = Double(size.width)
+        let band = min(220.0, width * 0.22)
+        let span = max(0.0, Double(size.height) - 150)
+        return (0..<16).map { index in
+            let phase = Double(index) * 2.39996 + Double(side) * 1.7
+            let fraction = Double((index * 7) % 17) / 17.0
+            let driftX = sin(time * 0.035 + phase) * 9
+            let driftY = cos(time * 0.027 + phase) * 12
+            let x = 22 + fraction * max(0, band - 44) + driftX
+            let y = 75 + Double(index) / 15 * span + driftY
+            return CGPoint(x: side == 0 ? x : width - x, y: y)
         }
     }
 }

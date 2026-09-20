@@ -19,6 +19,15 @@ struct WelcomeView: View {
                 .font(.system(size: 11.5))
                 .foregroundStyle(Theme.tertiary)
                 .padding(.top, 12)
+            Button("Try with sample files") {
+                do {
+                    model.open(try DemoFiles.prepare())
+                } catch {
+                    model.show("Couldn't load the sample files.", isError: true)
+                }
+            }
+            .buttonStyle(PillButtonStyle())
+            .padding(.top, 10)
 
             if !model.recents.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {

@@ -128,6 +128,12 @@ To launch straight into a folder:
 open build/LivingFolders.app --args ~/Downloads
 ```
 
+## Updating
+
+**Living Folders → Check for Updates…** in the menu bar. It checks the repo for new commits and, if you confirm, pulls and restarts.
+
+If you installed without Xcode, run `./build.sh --download --open` again instead — that fetches the newly built app from Releases. A `git pull` on its own would not help you, since the rebuild is the part you cannot do.
+
 ## Test
 
 ```bash

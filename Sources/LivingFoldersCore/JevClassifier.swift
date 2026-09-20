@@ -39,8 +39,8 @@ public struct JevClassifier: Sendable {
         return nil
     }
 
-    public static func resolveKey(bundleURL: URL = Bundle.main.bundleURL) -> String? {
-        resolveKeyWithSource(bundleURL: bundleURL)?.key
+    public static func resolveKey() -> String? {
+        resolveKeyWithSource()?.key
     }
 
     public func classify(folderName: String, items: [FileItem], onBatch: @escaping Progress = { _ in }) async throws -> [Membership] {

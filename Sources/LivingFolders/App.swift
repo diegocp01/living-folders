@@ -35,6 +35,9 @@ struct LivingFoldersApp: App {
                 Button("Open Folder…") { model.chooseFolder() }.keyboardShortcut("o", modifiers: .command)
                 Button("Rescan Folder") { model.rescan() }.keyboardShortcut("r", modifiers: .command).disabled(model.root == nil)
             }
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") { model.updateController.userRequestedAction() }
+            }
         }
 
         Settings { SettingsView(model: model) }

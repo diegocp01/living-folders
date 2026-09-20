@@ -23,6 +23,7 @@ final class WorkspaceModel {
     private(set) var items: [FileItem] = []
     var prompt = "" { didSet { if prompt != oldValue { promptChanged(from: oldValue) } } }
     let gathering: GatheringEngine
+    let updateController = UpdateController()
     var memberships: [String: Membership] { gathering.memberships }
     var isThinking: Bool { isScanning || gathering.isThinking }
     var status: String {

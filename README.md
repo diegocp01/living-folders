@@ -76,9 +76,24 @@ The commands you approve are always just these two:
 | `today`, `this week`, `last month`, `old` | modification date |
 | `folders`, `files` | directories or regular files |
 
-**Jev (optional).** Set `TYPESAFE_API_KEY` in your environment or in the app's Settings. Each folder name is then sent to Jev (`jev-latest`, one `noul` question per item) along with the names, kinds and dates of the files in the open folder.
+**Jev (optional).** Set `TYPESAFE_API_KEY` in the repo's `.env`, your environment, or the app's Settings (checked in that order). Each folder name is then sent to Jev (`jev-latest`, one `noul` question per item) instead of the on-device rules.
 
 > This path is implemented but has **not** been exercised against the live API. Treat it as untested.
+
+**What Jev actually sees.** Per file, only four things: the filename, the kind (extension), the modified date, and the size. The instruction attached to every question is: *"Use the filename, kind, modification date, and ordinary user intent."* File contents never leave your Mac — which is why the bundled demo files are empty: the names are the whole demo.
+
+```mermaid
+flowchart TD
+    A["Open a folder"] --> B["Type a name — every keystroke reclassifies"]
+    B --> C{"Jev API key set?"}
+    C -- "No" --> D["On-device rules:\nextension, filename synonyms, date"]
+    C -- "Yes" --> E["JevClassifier: one request with\nthe folder name + name, kind,\ndate and size per file"]
+    E --> F["TypeSafe Jev API\n(jev-latest, one question per file)"]
+    F --> G["0–1 score per file"]
+    D --> H["Best matches animate into the folder"]
+    G --> H
+    H --> I["You approve → files move"]
+```
 
 ---
 

@@ -9,6 +9,7 @@ let package = Package(
         .executableTarget(
             name: "LivingFolders",
             dependencies: ["LivingFoldersCore"],
+            resources: [.copy("DemoFiles")],
             swiftSettings: [.unsafeFlags(["-parse-as-library"])]
         ),
         .testTarget(name: "LivingFoldersCoreTests", dependencies: ["LivingFoldersCore"]),

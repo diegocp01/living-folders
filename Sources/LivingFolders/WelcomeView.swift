@@ -55,7 +55,7 @@ struct WelcomeView: View {
                 .padding(.top, 48)
             }
             Spacer()
-            Text("Runs entirely on your Mac · moves use /bin/mkdir and /bin/mv only after you approve")
+            Text("Jev classifies file metadata · file contents stay on your Mac · moves require your approval")
                 .font(.system(size: 11))
                 .foregroundStyle(Theme.tertiary)
                 .padding(.bottom, 18)

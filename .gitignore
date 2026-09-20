@@ -8,3 +8,6 @@ DerivedData/
 *.log
 .env
 .env.*
+__pycache__/
+*.py[cod]
+Claude outputs/

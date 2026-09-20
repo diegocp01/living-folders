@@ -4,8 +4,8 @@ import SwiftUI
 /// Light frosted-glass theme, taken from the original living-folders mockup:
 /// light style, ~50% window transparency, system font.
 enum Theme {
-    // Window tint: rgb(242, 247, 251) at 50% over the frosted blur.
-    static let glass = Color(red: 0.949, green: 0.969, blue: 0.984).opacity(0.5)
+    // Light tint at 40% opacity; the native material supplies the blur.
+    static let glass = Color(red: 0.949, green: 0.969, blue: 0.984).opacity(0.4)
     static let glassStrong = Color.white.opacity(0.55)
 
     static let canvas = Color(red: 0.894, green: 0.914, blue: 0.929) // #e4e9ed
@@ -21,18 +21,12 @@ enum Theme {
     static let soft = Animation.easeOut(duration: 0.22)
 }
 
-/// Frosted window background: system blur + the mockup's 50% light tint.
+/// Frosted window background with a light, translucent tint.
 struct Backdrop: View {
     var body: some View {
         ZStack {
             FrostedView()
             Theme.glass
-            RadialGradient(
-                colors: [Color(red: 0.78, green: 0.85, blue: 0.87).opacity(0.35), .clear],
-                center: .init(x: 0.1, y: 0.95), startRadius: 0, endRadius: 620)
-            RadialGradient(
-                colors: [Color(red: 0.93, green: 0.91, blue: 0.87).opacity(0.35), .clear],
-                center: .init(x: 0.9, y: 0.05), startRadius: 0, endRadius: 560)
         }
         .ignoresSafeArea()
     }
@@ -41,13 +35,45 @@ struct Backdrop: View {
 struct FrostedView: NSViewRepresentable {
     func makeNSView(context: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()
-        view.material = .light
+        view.material = .underWindowBackground
         view.blendingMode = .behindWindow
         view.state = .active
         return view
     }
 
     func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
+}
+
+/// The same blue folder silhouette used in the original desktop mockup.
+struct FolderGlyph: View {
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .topLeading) {
+                RoundedRectangle(cornerRadius: geo.size.width * 0.09)
+                    .fill(Color(red: 0.51, green: 0.77, blue: 0.90))
+                    .frame(width: geo.size.width * 0.46, height: geo.size.height * 0.35)
+                RoundedRectangle(cornerRadius: geo.size.width * 0.10)
+                    .fill(LinearGradient(colors: [Color(red: 0.51, green: 0.81, blue: 0.95), Color(red: 0.32, green: 0.67, blue: 0.85)], startPoint: .top, endPoint: .bottom))
+                    .overlay(alignment: .top) { Color.white.opacity(0.4).frame(height: 0.5).padding(.horizontal, 3) }
+                    .padding(.top, geo.size.height * 0.17)
+            }
+        }
+        .shadow(color: Theme.accent.opacity(0.18), radius: 2, y: 1)
+        .accessibilityHidden(true)
+    }
+}
+
+struct FolderTab: Shape {
+    func path(in rect: CGRect) -> Path {
+        Path { path in
+            path.move(to: CGPoint(x: 0, y: rect.height))
+            path.addLine(to: CGPoint(x: 0, y: 8))
+            path.addQuadCurve(to: CGPoint(x: 8, y: 0), control: .zero)
+            path.addLine(to: CGPoint(x: rect.width * 0.8, y: 0))
+            path.addLine(to: CGPoint(x: rect.width, y: rect.height))
+            path.closeSubpath()
+        }
+    }
 }
 
 struct Panel: ViewModifier {

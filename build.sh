@@ -41,6 +41,7 @@ build_from_source() {
   mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
   cp "$bin" "$APP/Contents/MacOS/LivingFolders"
   cp Resources/Info.plist "$APP/Contents/Info.plist"
+  cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
   printf 'APPL????' > "$APP/Contents/PkgInfo"
   codesign --force --sign - "$APP" >/dev/null 2>&1 || true
   echo "Built $APP"

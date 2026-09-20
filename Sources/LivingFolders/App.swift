@@ -1,4 +1,5 @@
 import SwiftUI
+import LivingFoldersCore
 
 @main
 struct LivingFoldersApp: App {
@@ -34,6 +35,9 @@ struct LivingFoldersApp: App {
                 Button("Open Folder…") { model.chooseFolder() }.keyboardShortcut("o", modifiers: .command)
                 Button("Rescan Folder") { model.rescan() }.keyboardShortcut("r", modifiers: .command).disabled(model.root == nil)
             }
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") { model.updateController.userRequestedAction() }
+            }
         }
 
         Settings { SettingsView(model: model) }
@@ -43,13 +47,27 @@ struct LivingFoldersApp: App {
 private struct SettingsView: View {
     @Bindable var model: WorkspaceModel
     @AppStorage("TYPESAFE_API_KEY") private var apiKey = ""
+    @State private var keySource: JevClassifier.KeySource?
+
+    private func refreshKeySource() {
+        keySource = JevClassifier.resolveKeyWithSource()?.source
+    }
 
     var body: some View {
         Form {
             Section("Jev") {
                 SecureField("TYPESAFE_API_KEY", text: $apiKey)
-                    .onSubmit { model.credentialsChanged() }
-                Button("Apply key") { model.credentialsChanged() }
+                    .onSubmit { model.credentialsChanged(); refreshKeySource() }
+                Button("Apply key") { model.credentialsChanged(); refreshKeySource() }
+                if keySource == .dotEnv {
+                    Text("Using TYPESAFE_API_KEY from .env in the repo folder — it takes priority over the key above.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else if keySource == .environment {
+                    Text("Using TYPESAFE_API_KEY from the environment — it takes priority over the key above.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
                 Text("A key is required for gathering. Jev receives the folder prompt, filenames, types, sizes and dates—not file contents or full paths. Typing and folder changes can use API credits. A configured key is only shown as ready after a successful classification.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -57,5 +75,6 @@ private struct SettingsView: View {
         }
         .formStyle(.grouped)
         .frame(width: 440)
+        .onAppear(perform: refreshKeySource)
     }
 }

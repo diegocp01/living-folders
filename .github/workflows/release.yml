@@ -1,0 +1,53 @@
+name: Release app
+
+# Publishes a prebuilt LivingFolders.app so people without Xcode can still
+# clone and run. GitHub's macOS runners have Xcode, so the build works here
+# even though it cannot work on a Mac with only Command Line Tools.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-app
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          xcode-select -p
+          xcodebuild -version
+          swift --version
+
+      - name: Build the app from source
+        run: ./build.sh --from-source
+
+      - name: Zip the app
+        run: ditto -c -k --keepParent build/LivingFolders.app LivingFolders.zip
+
+      - name: Upload as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LivingFolders-app
+          path: LivingFolders.zip
+          retention-days: 30
+
+      - name: Publish rolling "latest" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Recreate the rolling tag so the download URL stays stable:
+          # .../releases/latest/download/LivingFolders.zip
+          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create latest LivingFolders.zip \
+            --title "Latest build" \
+            --notes "Prebuilt LivingFolders.app, built from ${{ github.sha }} on a macOS runner with Xcode. Download this if you do not have Xcode — \`./build.sh --open\` fetches it for you automatically."

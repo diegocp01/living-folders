@@ -6,7 +6,9 @@ A native macOS app. Open any folder, start typing what you want — `screenshots
 
 ![Living Folders in use](docs/screenshot.png)
 
-SwiftUI. No web view, no server, no account, no network unless you ask for it.
+SwiftUI. No web view, no server, no account.
+
+**You need a Jev API key.** The matching is done by Jev — that is the part that knows a file called `Kyoto hotel.pdf` belongs in `japan trip` and `2025 taxes.xlsx` does not. Get a key at **[console.typesafe.ai](https://console.typesafe.ai/home)**, where you can also watch your usage, then add it in Settings (⌘,). Nothing gathers without it.
 
 ---
 
@@ -34,6 +36,11 @@ Either way it produces `build/LivingFolders.app` and opens it. Do not install
 Xcode, Homebrew or anything else on my machine — you do not need to, and I
 have not asked you to. If the script fails, show me its output and stop.
 
+The app needs a Jev API key before it can gather anything. Tell me to get one
+from https://console.typesafe.ai/home and to paste it into the app's Settings
+myself. Do not ask me to paste the key to you, and do not put it in a file, a
+shell command or an environment variable on my behalf.
+
 The app itself never touches my files without showing me the exact commands
 and waiting for my approval.
 ````
@@ -48,7 +55,7 @@ This app moves real files, so the whole design is built around you seeing it com
 - **Nothing is ever overwritten.** The move uses `mv -n`, which refuses to clobber an existing file.
 - **Nothing is ever deleted.** There is no delete path in the app at all.
 - **No surprise destinations.** The name you type is sanitised into a single path component — `/`, `:` and leading dots are stripped — and the app will not move a folder into itself.
-- **No network by default.** Classification runs on your Mac. The optional cloud path is off unless you set a key.
+- **Your files are never uploaded.** Jev is sent filenames, file kinds, sizes and modification dates — never file contents. Nothing leaves your Mac except that list of names.
 
 The commands you approve are always just these two:
 
@@ -67,18 +74,21 @@ The commands you approve are always just these two:
 
 ### How it decides what belongs
 
-**On-device rules (the default).** No network. Each item is scored on four signals:
+**Jev (this is the product).** Your folder name and the list of files in the open folder — names, kinds, sizes, dates, never contents — go to Jev (`jev-latest`, one `noul` question per item), which decides what genuinely belongs. This is what lets `tax stuff` find a W-2 and `Japan trip` find a hotel confirmation without either word appearing in the filename.
 
-| You type | It matches on |
+Each gathered file carries the confidence Jev gave it, so you can see *how* sure it was before you approve. Results are cached per folder name and the app keeps watching the folder, so adding a file re-runs only what changed.
+
+> **If Jev is unreachable, gathering stops and shows the error.** There is no offline mode today. A local rule-based classifier ships in the source (`LocalClassifier`) but nothing currently calls it.
+
+**Setting your key.** Keys and usage both live at [console.typesafe.ai](https://console.typesafe.ai/home). The app reads the first one it finds, in this order:
+
+| Where | Notes |
 |---|---|
-| `photos`, `screenshots`, `PDFs`, `installers`, `code`, `music` | file type, by extension |
-| `trip`, `taxes`, or any topic | filename, with synonyms (`trip` → flight, hotel, itinerary, passport; `taxes` → irs, w2, 1099) |
-| `today`, `this week`, `last month`, `old` | modification date |
-| `folders`, `files` | directories or regular files |
+| `.env` beside the repo | `TYPESAFE_API_KEY=…` — gitignored, never committed |
+| `TYPESAFE_API_KEY` in your environment | overrides Settings |
+| Settings (⌘,) | the normal way; stored in your macOS user defaults |
 
-**Jev (optional).** Set `TYPESAFE_API_KEY` in your environment or in the app's Settings. Each folder name is then sent to Jev (`jev-latest`, one `noul` question per item) along with the names, kinds and dates of the files in the open folder.
-
-> This path is implemented but has **not** been exercised against the live API. Treat it as untested.
+Settings tells you which of the three is currently winning, so a forgotten `.env` cannot silently override the key you just typed.
 
 ---
 
@@ -91,6 +101,8 @@ cd living-folders
 ```
 
 You end up with `build/LivingFolders.app`, open and ready. **You do not need Xcode.**
+
+Then open Settings (⌘,) and paste your Jev API key. Get one at [console.typesafe.ai](https://console.typesafe.ai/home) — same place you track usage. Nothing gathers without it.
 
 `build.sh` picks a path for you:
 
@@ -115,6 +127,12 @@ To launch straight into a folder:
 ```bash
 open build/LivingFolders.app --args ~/Downloads
 ```
+
+## Updating
+
+**Living Folders → Check for Updates…** in the menu bar. It checks the repo for new commits and, if you confirm, pulls and restarts.
+
+If you installed without Xcode, run `./build.sh --download --open` again instead — that fetches the newly built app from Releases. A `git pull` on its own would not help you, since the rebuild is the part you cannot do.
 
 ## Test
 

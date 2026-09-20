@@ -2,10 +2,9 @@ import AppKit
 import Observation
 import LivingFoldersCore
 
-/// Shared update state machine. Drives both the "Check for updates" pill in
-/// the window chrome and the "Check for Updates…" item in the app menu, so
-/// they always show the same status. Checks the GitHub repo for new commits;
-/// when the user confirms, it git-pulls and restarts the app.
+/// Update state machine behind the "Check for Updates…" item in the app menu.
+/// Checks the GitHub repo for new commits; when the user confirms, it git-pulls
+/// and restarts the app.
 @MainActor @Observable
 final class UpdateController {
     enum Phase: Equatable {

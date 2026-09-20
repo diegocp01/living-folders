@@ -39,7 +39,6 @@ private struct TopBar: View {
     var body: some View {
         HStack(spacing: 14) {
             Spacer().frame(width: 62) // room for traffic lights
-            UpdateButton(controller: model.updateController)
             if let root = model.root {
                 HStack(spacing: 6) {
                     Image(systemName: "folder")

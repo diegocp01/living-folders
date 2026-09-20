@@ -3,8 +3,12 @@ import Observation
 import LivingFoldersCore
 
 /// Update state machine behind the "Check for Updates…" item in the app menu.
-/// Checks the GitHub repo for new commits; when the user confirms, it git-pulls
-/// and restarts the app.
+/// Checks the GitHub repo for new commits; when the user confirms, it installs
+/// the new version and restarts.
+///
+/// `phase` drives any inline chrome. `notice` drives the alert, which is the
+/// only feedback a user gets when the update is run from the menu bar — the
+/// menu item itself cannot show status.
 @MainActor @Observable
 final class UpdateController {
     enum Phase: Equatable {
@@ -16,7 +20,16 @@ final class UpdateController {
         case error(String)
     }
 
+    struct Notice: Identifiable, Equatable {
+        let id = UUID()
+        let title: String
+        let message: String
+        /// Offers "Install and Restart" rather than a plain dismiss.
+        let isConfirmation: Bool
+    }
+
     private(set) var phase: Phase = .idle
+    var notice: Notice?
     private var revertTask: Task<Void, Never>?
 
     /// Same behavior as tapping the pill: idle/up-to-date/error starts a
@@ -32,6 +45,12 @@ final class UpdateController {
         }
     }
 
+    /// The alert's "Install and Restart" button.
+    func confirmUpdate() {
+        guard phase == .available else { return }
+        startUpdate()
+    }
+
     private func startCheck() {
         phase = .checking
         Task {
@@ -40,15 +59,19 @@ final class UpdateController {
                 switch result {
                 case .upToDate:
                     phase = .upToDate
+                    notice = Notice(title: "You're up to date",
+                                    message: "Living Folders is running the newest version.",
+                                    isConfirmation: false)
                     scheduleRevert()
                 case .available:
                     phase = .available
+                    notice = Notice(title: "A new version is available",
+                                    message: "Living Folders will install it and restart.",
+                                    isConfirmation: true)
                 case .noSourceDir:
-                    phase = .error("No source checkout found")
-                    scheduleRevert()
+                    fail("Could not find the Living Folders checkout next to the app.")
                 case .failed(let message):
-                    phase = .error(message)
-                    scheduleRevert()
+                    fail(message)
                 }
             }
         }
@@ -57,16 +80,22 @@ final class UpdateController {
     private func startUpdate() {
         phase = .updating
         Task {
-            let ok = await Updater.pull()
+            let result = await Updater.update()
             await MainActor.run {
-                if ok {
+                switch result {
+                case .updated:
                     relaunch()
-                } else {
-                    phase = .error("Pull failed")
-                    scheduleRevert()
+                case .failed(let message):
+                    fail(message)
                 }
             }
         }
+    }
+
+    private func fail(_ message: String) {
+        phase = .error(message)
+        notice = Notice(title: "Update failed", message: message, isConfirmation: false)
+        scheduleRevert()
     }
 
     private func scheduleRevert() {

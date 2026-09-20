@@ -20,7 +20,7 @@ public struct JevClassifier: Sendable {
 
     /// Where a resolved key came from. `.dotEnv` wins so a dev who clones the
     /// repo can keep the key in `<repo>/.env` instead of Settings.
-    public enum KeySource: Sendable {
+    public enum KeySource: Sendable, Equatable {
         case dotEnv, environment, stored
     }
 

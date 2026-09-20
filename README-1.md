@@ -19,26 +19,31 @@ Please install Living Folders on my Mac.
 
 Repo: https://github.com/diegocp01/living-folders.git
 
+Steps:
+
 ```bash
 git clone https://github.com/diegocp01/living-folders.git
 cd living-folders
 ./build.sh --open
 ```
 
-That is the whole install. `build.sh` figures out the rest:
+That produces `build/LivingFolders.app` and launches it.
 
-- If I have Xcode, it builds the app from source.
-- If I do not have Xcode, it downloads the prebuilt app instead.
+Before you start, check the requirements and tell me if either is missing
+instead of installing anything yourself:
+- macOS 14 or later  (`sw_vers -productVersion`)
+- Xcode 15 or later, Swift 5.9  (`xcodebuild -version`)
 
-Either way it produces `build/LivingFolders.app` and opens it. Do not install
-Xcode, Homebrew or anything else on my machine — you do not need to, and I
-have not asked you to. If the script fails, show me its output and stop.
-
-The app itself never touches my files without showing me the exact commands
-and waiting for my approval.
+Notes:
+- This only builds and opens an app. Do not move, rename or delete any of my
+  files as part of the install.
+- The app itself never touches files without showing me the exact commands
+  and waiting for my approval.
 ````
 
-Prefer to do it yourself? See [Install](#install).
+Prefer to do it yourself? See [Install manually](#install-manually).
+
+---
 
 ## What makes it safe
 
@@ -82,31 +87,15 @@ The commands you approve are always just these two:
 
 ---
 
-## Install
+## Install manually
+
+Requires macOS 14+ and Xcode 15+ (Swift 5.9).
 
 ```bash
 git clone https://github.com/diegocp01/living-folders.git
 cd living-folders
 ./build.sh --open
 ```
-
-You end up with `build/LivingFolders.app`, open and ready. **You do not need Xcode.**
-
-`build.sh` picks a path for you:
-
-| Your Mac | What happens |
-|---|---|
-| Xcode installed | Builds from source |
-| Xcode not installed | Downloads the prebuilt app from [Releases](https://github.com/diegocp01/living-folders/releases/latest) |
-
-Force either one with `./build.sh --from-source` or `./build.sh --download`.
-
-<details>
-<summary>Why a download path exists</summary>
-
-SwiftUI's `@State` is a Swift macro, and macro plugin binaries ship inside `Xcode.app`. A Mac with only the Command Line Tools has `swift` but cannot expand those macros, so the app genuinely cannot be compiled there — no build flag works around it. Rather than make everyone install a multi-gigabyte Xcode, CI builds the app on a macOS runner that has Xcode and publishes it, and `build.sh` fetches that.
-
-</details>
 
 To develop in Xcode, run `open Package.swift` and use the `LivingFolders` scheme.
 
@@ -115,6 +104,8 @@ To launch straight into a folder:
 ```bash
 open build/LivingFolders.app --args ~/Downloads
 ```
+
+---
 
 ## Test
 

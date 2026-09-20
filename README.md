@@ -6,7 +6,9 @@ A native macOS app. Open any folder, start typing what you want — `screenshots
 
 ![Living Folders in use](docs/screenshot.png)
 
-SwiftUI. No web view, no server, no account, no network unless you ask for it.
+SwiftUI. No web view, no server, no account.
+
+**You need a Jev API key.** The matching is done by Jev — that is the part that understands what `tax stuff` means. Get a key at **[console.typesafe.ai](https://console.typesafe.ai/home)**, where you can also watch your usage. The app asks for it on first launch and will not run without one.
 
 ---
 
@@ -34,6 +36,11 @@ Either way it produces `build/LivingFolders.app` and opens it. Do not install
 Xcode, Homebrew or anything else on my machine — you do not need to, and I
 have not asked you to. If the script fails, show me its output and stop.
 
+The app needs a Jev API key and will ask for it on first launch. Tell me to get
+one from https://console.typesafe.ai/home and let me type it in myself. Do not
+ask me to paste the key to you, and do not put it in a file, a shell command or
+an environment variable on my behalf.
+
 The app itself never touches my files without showing me the exact commands
 and waiting for my approval.
 ````
@@ -48,7 +55,7 @@ This app moves real files, so the whole design is built around you seeing it com
 - **Nothing is ever overwritten.** The move uses `mv -n`, which refuses to clobber an existing file.
 - **Nothing is ever deleted.** There is no delete path in the app at all.
 - **No surprise destinations.** The name you type is sanitised into a single path component — `/`, `:` and leading dots are stripped — and the app will not move a folder into itself.
-- **No network by default.** Classification runs on your Mac. The optional cloud path is off unless you set a key.
+- **Your files are never uploaded.** Jev is sent filenames, file kinds, sizes and modification dates — never file contents. Nothing leaves your Mac except that list of names.
 
 The commands you approve are always just these two:
 
@@ -67,7 +74,11 @@ The commands you approve are always just these two:
 
 ### How it decides what belongs
 
-**On-device rules (the default).** No network. Each item is scored on four signals:
+**Jev (this is the product).** Your folder name and the list of files in the open folder — names, kinds, sizes, dates, never contents — go to Jev (`jev-latest`, one `noul` question per item), which decides what genuinely belongs. This is what lets `tax stuff` find a W-2 and `Japan trip` find a hotel confirmation without either word appearing in the filename.
+
+> The Jev path is implemented but has **not** yet been exercised against the live API. Treat it as untested until that changes.
+
+**On-device fallback.** If Jev is unreachable — you are offline, or the service is down — the app falls back to local rules so you are not stranded mid-task. This is a safety net, not a way to skip the key: it is only reachable after a key has been accepted. Each item is scored on four signals:
 
 | You type | It matches on |
 |---|---|
@@ -76,9 +87,7 @@ The commands you approve are always just these two:
 | `today`, `this week`, `last month`, `old` | modification date |
 | `folders`, `files` | directories or regular files |
 
-**Jev (optional).** Set `TYPESAFE_API_KEY` in your environment or in the app's Settings. Each folder name is then sent to Jev (`jev-latest`, one `noul` question per item) along with the names, kinds and dates of the files in the open folder.
-
-> This path is implemented but has **not** been exercised against the live API. Treat it as untested.
+**Setting your key.** The app asks on first launch. You can also set it later in Settings, or export `TYPESAFE_API_KEY` in your environment. Keys and usage both live at [console.typesafe.ai](https://console.typesafe.ai/home).
 
 ---
 
@@ -91,6 +100,8 @@ cd living-folders
 ```
 
 You end up with `build/LivingFolders.app`, open and ready. **You do not need Xcode.**
+
+On first launch the app asks for your Jev API key. Get one at [console.typesafe.ai](https://console.typesafe.ai/home) — same place you track usage. The app does not run without it.
 
 `build.sh` picks a path for you:
 

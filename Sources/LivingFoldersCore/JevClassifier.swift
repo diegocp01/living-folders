@@ -18,10 +18,29 @@ public struct JevClassifier: Sendable {
         self.transport = transport
     }
 
-    public static func resolveKey() -> String? {
-        if let key = ProcessInfo.processInfo.environment["TYPESAFE_API_KEY"], !key.isEmpty { return key }
-        if let key = UserDefaults.standard.string(forKey: "TYPESAFE_API_KEY"), !key.isEmpty { return key }
+    /// Where a resolved key came from. `.dotEnv` wins so a dev who clones the
+    /// repo can keep the key in `<repo>/.env` instead of Settings.
+    public enum KeySource: Sendable {
+        case dotEnv, environment, stored
+    }
+
+    public static func resolveKeyWithSource(bundleURL: URL = Bundle.main.bundleURL) -> (key: String, source: KeySource)? {
+        if let root = EnvFile.repoRoot(bundleURL: bundleURL),
+           let key = EnvFile.load(repoRoot: root)["TYPESAFE_API_KEY"],
+           !key.isEmpty {
+            return (key, .dotEnv)
+        }
+        if let key = ProcessInfo.processInfo.environment["TYPESAFE_API_KEY"], !key.isEmpty {
+            return (key, .environment)
+        }
+        if let key = UserDefaults.standard.string(forKey: "TYPESAFE_API_KEY"), !key.isEmpty {
+            return (key, .stored)
+        }
         return nil
+    }
+
+    public static func resolveKey(bundleURL: URL = Bundle.main.bundleURL) -> String? {
+        resolveKeyWithSource(bundleURL: bundleURL)?.key
     }
 
     public func classify(folderName: String, items: [FileItem], onBatch: @escaping Progress = { _ in }) async throws -> [Membership] {

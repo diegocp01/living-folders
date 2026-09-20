@@ -5,7 +5,7 @@ import LivingFoldersCore
 enum ClassificationMode: String {
     case local, jev
 
-    var label: String { self == .jev ? "Jev" : "On-device rules" }
+    var label: String { self == .jev ? "Jev ready" : "On-device rules" }
 }
 
 @MainActor @Observable

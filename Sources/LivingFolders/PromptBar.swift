@@ -45,7 +45,7 @@ struct PromptBar: View {
             .padding(.leading, 18)
             .padding(.trailing, 8)
             .frame(height: 54)
-            .panel(radius: 27, fill: Color.white.opacity(0.06), stroke: focused ? Theme.hairlineStrong : Theme.hairline)
+            .panel(radius: 27, fill: Color.white.opacity(0.7), stroke: focused ? Theme.accent.opacity(0.5) : Theme.hairlineStrong)
             .animation(Theme.soft, value: model.canApprove)
             .animation(Theme.soft, value: model.prompt.isEmpty)
 
@@ -70,8 +70,8 @@ struct PromptBar: View {
                         .foregroundStyle(model.prompt == preset ? Theme.ink : Theme.secondary)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
-                        .background(Capsule().fill(Color.white.opacity(model.prompt == preset ? 0.1 : 0.03)))
-                        .overlay(Capsule().strokeBorder(Theme.hairline, lineWidth: 1))
+                        .background(Capsule().fill(Color.white.opacity(model.prompt == preset ? 0.75 : 0.4)))
+                        .overlay(Capsule().strokeBorder(Theme.hairlineStrong, lineWidth: 1))
                 }
             }
             .padding(.horizontal, 6)

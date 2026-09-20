@@ -28,6 +28,7 @@ private struct TopBar: View {
     var body: some View {
         HStack(spacing: 14) {
             Spacer().frame(width: 62) // room for traffic lights
+            UpdateButton()
             if let root = model.root {
                 HStack(spacing: 6) {
                     Image(systemName: "folder")
@@ -50,7 +51,7 @@ private struct TopBar: View {
                 .font(.system(size: 12, weight: .regular))
                 .foregroundStyle(Theme.tertiary)
             HStack(spacing: 6) {
-                Circle().fill(model.mode == .jev ? Theme.accent : Theme.ink.opacity(0.7)).frame(width: 6, height: 6)
+                Circle().fill(model.mode == .jev ? Theme.jevLive : Theme.tertiary).frame(width: 6, height: 6)
                 Text(model.mode.label)
             }
             .font(.system(size: 11.5, weight: .medium))
@@ -151,7 +152,7 @@ private struct DesktopZone: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .fill(Color.white.opacity(0.012))
+                .fill(Color.white.opacity(0.35))
                 .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous).strokeBorder(Theme.hairline.opacity(0.7), lineWidth: 1))
             if !hasItems {
                 Text("This folder is empty.")
@@ -201,7 +202,7 @@ private struct FolderZone: View {
             }
             Spacer()
         }
-        .panel(radius: 26, fill: Color.white.opacity(model.isThinking ? 0.055 : 0.04), stroke: model.isThinking ? Theme.accent.opacity(0.35) : Theme.hairlineStrong)
+        .panel(radius: 26, fill: Color.white.opacity(model.isThinking ? 0.65 : 0.5), stroke: model.isThinking ? Theme.accent.opacity(0.35) : Theme.hairlineStrong)
         .shadow(color: Theme.accent.opacity(model.isThinking ? 0.12 : 0), radius: 30)
         .animation(Theme.soft, value: model.isThinking)
         .animation(Theme.soft, value: count == 0)

@@ -82,6 +82,6 @@ struct ApproveSheet: View {
         .padding(26)
         .frame(width: 520)
         .background(Backdrop())
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(.light)
     }
 }

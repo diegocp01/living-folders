@@ -46,10 +46,11 @@ private struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("Jev (optional)") {
+            Section("Jev") {
                 SecureField("TYPESAFE_API_KEY", text: $apiKey)
-                    .onChange(of: apiKey) { _, value in model.mode = value.isEmpty ? .local : .jev }
-                Text("Without a key, classification runs on-device with filename, type, and date rules. With a key, each folder name is sent to Jev together with the names of the files in the open folder.")
+                    .onSubmit { model.credentialsChanged() }
+                Button("Apply key") { model.credentialsChanged() }
+                Text("A key is required for gathering. Jev receives the folder prompt, filenames, types, sizes and dates—not file contents or full paths. Typing and folder changes can use API credits. A configured key is only shown as ready after a successful classification.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

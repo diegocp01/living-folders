@@ -51,6 +51,69 @@ final class ShellMoverTests: XCTestCase {
         XCTAssert(after.first { $0.name == "Japan trip" }!.isDirectory)
     }
 
+    func testChangedSourceRequiresAnotherApproval() async throws {
+        let items = try FolderScanner.scan(root)
+        let plan = try ShellMover.plan(root: root, prompt: "Trip", items: items)
+        try Data("changed after preview".utf8).write(to: items[0].url)
+        do {
+            _ = try await ShellMover.execute(plan)
+            XCTFail("A stale preview must not move anything")
+        } catch { XCTAssertTrue(error is MoveError) }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: plan.destination.path))
+        XCTAssertTrue(items.allSatisfy { FileManager.default.fileExists(atPath: $0.url.path) })
+    }
+
+    func testReplacementWithSameNameSizeAndDateInvalidatesPlan() async throws {
+        let item = try XCTUnwrap(FolderScanner.scan(root).first)
+        XCTAssertNotNil(item.fileIdentity)
+        let plan = try ShellMover.plan(root: root, prompt: "Trip", items: [item])
+        try FileManager.default.moveItem(at: item.url, to: root.appendingPathComponent("original"))
+        try Data("x".utf8).write(to: item.url)
+        try FileManager.default.setAttributes([.modificationDate: item.modified], ofItemAtPath: item.url.path)
+        do {
+            _ = try await ShellMover.execute(plan)
+            XCTFail("A replaced file requires another approval")
+        } catch { XCTAssertTrue(error is MoveError) }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: plan.destination.path))
+    }
+
+    func testLargeMoveIsSplitIntoBoundedCommands() async throws {
+        for index in 0..<130 { try Data().write(to: root.appendingPathComponent("\(index).txt")) }
+        let items = try FolderScanner.scan(root)
+        let plan = try ShellMover.plan(root: root, prompt: "Trip", items: items)
+        XCTAssertEqual(plan.commands.count, 4)
+        XCTAssertTrue(plan.commands.dropFirst().allSatisfy { $0.arguments.count <= 66 })
+        let result = try await ShellMover.execute(plan)
+        XCTAssertEqual(result.moved.count, items.count)
+    }
+
+    func testSymlinkDestinationCannotRedirectMoves() async throws {
+        let items = try FolderScanner.scan(root)
+        let elsewhere = root.appendingPathComponent("elsewhere")
+        try FileManager.default.createDirectory(at: elsewhere, withIntermediateDirectories: true)
+        let plan = try ShellMover.plan(root: root, prompt: "Trip", items: items)
+        try FileManager.default.createSymbolicLink(at: plan.destination, withDestinationURL: elsewhere)
+        do {
+            _ = try await ShellMover.execute(plan)
+            XCTFail("A symlink destination must not be followed")
+        } catch { XCTAssertTrue(error is MoveError) }
+        XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: elsewhere.path).isEmpty)
+        XCTAssertTrue(items.allSatisfy { FileManager.default.fileExists(atPath: $0.url.path) })
+    }
+
+    func testCollisionFailsBeforeMovingOtherItems() async throws {
+        let items = try FolderScanner.scan(root)
+        let destination = root.appendingPathComponent("Trip")
+        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        try Data("keep".utf8).write(to: destination.appendingPathComponent(items[0].name))
+        let plan = try ShellMover.plan(root: root, prompt: "Trip", items: items)
+        do {
+            _ = try await ShellMover.execute(plan)
+            XCTFail("A collision must be reported rather than counted as moved")
+        } catch { XCTAssertTrue(error is MoveError) }
+        XCTAssertTrue(items.allSatisfy { FileManager.default.fileExists(atPath: $0.url.path) })
+    }
+
     func testExistingDestinationIsNeverMovedIntoItself() throws {
         try FileManager.default.createDirectory(at: root.appendingPathComponent("Japan trip"), withIntermediateDirectories: true)
         let items = try FolderScanner.scan(root)

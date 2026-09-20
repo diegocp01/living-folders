@@ -3,52 +3,88 @@ import Observation
 import LivingFoldersCore
 
 enum ClassificationMode: String {
-    case local, jev
+    case missingKey, configured, jev, unavailable
 
-    var label: String { self == .jev ? "Jev ready" : "On-device rules" }
+    var label: String {
+        switch self {
+        case .missingKey: return "Jev key required"
+        case .configured: return "Jev configured"
+        case .jev: return "Jev ready"
+        case .unavailable: return "Jev unavailable"
+        }
+    }
 }
 
 @MainActor @Observable
 final class WorkspaceModel {
-    static let displayLimit = 120
     static let recentsKey = "recentFolders"
 
-    var root: URL?
-    var items: [FileItem] = []
-    var prompt = ""
-    var memberships: [String: Membership] = [:]
-    var isThinking = false
-    var status = "Name the folder. It fills as you type."
-    var mode: ClassificationMode = JevClassifier.resolveKey() == nil ? .local : .jev
+    private(set) var root: URL?
+    private(set) var items: [FileItem] = []
+    var prompt = "" { didSet { if prompt != oldValue { promptChanged(from: oldValue) } } }
+    let gathering: GatheringEngine
+    var memberships: [String: Membership] { gathering.memberships }
+    var isThinking: Bool { isScanning || gathering.isThinking }
+    var status: String {
+        if isMoving { return "Moving approved items…" }
+        if let scanError { return scanError }
+        if isScanning { return "Reading folder…" }
+        if let result = lastResult {
+            return "Moved \(result.moved.count) items into \(result.destination.lastPathComponent)."
+        }
+        return gathering.status
+    }
+    var mode: ClassificationMode {
+        if apiKey == nil { return .missingKey }
+        if gathering.error != nil { return .unavailable }
+        return gathering.hasSuccessfulResponse ? .jev : .configured
+    }
     var toast: (text: String, isError: Bool)?
     var plan: MovePlan?
-    var isMoving = false
-    var lastResult: MoveResult?
-    var recents: [URL] = (UserDefaults.standard.stringArray(forKey: WorkspaceModel.recentsKey) ?? []).map { URL(fileURLWithPath: $0) }
+    private(set) var isMoving = false
+    private(set) var isScanning = false
+    private(set) var lastResult: MoveResult?
+    var recents: [URL]
 
-    private var version = 0
-    private var debounce: Task<Void, Never>?
+    private var scanVersion = 0
+    private var folderVersion = 0
+    private var planGeneration = -1
+    private var scanTask: Task<Void, Never>?
+    private var watcher: FolderWatcher?
+    private var scanError: String?
     private var toastTask: Task<Void, Never>?
-    private var cache: [String: [Membership]] = [:]
-    private let local = LocalClassifier()
+    private var apiKey: String?
+    private let keyProvider: () -> String?
+    private let preferences: UserDefaults?
 
-    init() {
+    init(transport: @escaping JevClassifier.Transport = { try await URLSession.shared.data(for: $0) },
+         keyProvider: @escaping () -> String? = JevClassifier.resolveKey,
+         openLaunchArgument: Bool = true, preferences: UserDefaults? = .standard) {
+        gathering = GatheringEngine(transport: transport)
+        self.preferences = preferences
+        recents = (preferences?.stringArray(forKey: Self.recentsKey) ?? []).map { URL(fileURLWithPath: $0) }
+        self.keyProvider = keyProvider
+        apiKey = Self.normalizedKey(keyProvider())
         // `open LivingFolders.app --args /path/to/folder` opens straight into that folder.
-        if let path = CommandLine.arguments.dropFirst().first(where: { !$0.hasPrefix("-") }) {
+        if openLaunchArgument, let path = CommandLine.arguments.dropFirst().first(where: { !$0.hasPrefix("-") }) {
             let url = URL(fileURLWithPath: path)
             if (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true { open(url) }
         }
     }
 
-    var visibleItems: [FileItem] { Array(items.prefix(Self.displayLimit)) }
     var gathered: [FileItem] { items.filter { memberships[$0.id]?.belongs == true } }
-    var scattered: [FileItem] { visibleItems.filter { memberships[$0.id]?.belongs != true } }
-    var folderTitle: String { prompt.trimmingCharacters(in: .whitespaces).isEmpty ? "Untitled folder" : prompt.trimmingCharacters(in: .whitespaces) }
-    var canApprove: Bool { !gathered.isEmpty && !isThinking && !isMoving && ShellMover.folderName(from: prompt) != nil }
+    var scattered: [FileItem] { items.filter { memberships[$0.id]?.belongs != true } }
+    var folderTitle: String { prompt.trimmingCharacters(in: .whitespaces).isEmpty ? "Your living folder" : prompt.trimmingCharacters(in: .whitespaces) }
+    var canApprove: Bool {
+        root != nil && scanError == nil && gathering.isCurrent && !gathered.isEmpty &&
+        !isThinking && !isMoving && ShellMover.folderName(from: prompt) != nil
+    }
+    var planIsCurrent: Bool { plan != nil && canApprove && planGeneration == gathering.generation }
 
     // MARK: Folder
 
     func chooseFolder() {
+        guard !isMoving else { return }
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
@@ -59,110 +95,112 @@ final class WorkspaceModel {
     }
 
     func open(_ url: URL) {
-        root = url
-        reset()
-        rescan()
-        recents.removeAll { $0.path == url.path }
-        recents.insert(url, at: 0)
-        recents = Array(recents.prefix(6))
-        UserDefaults.standard.set(recents.map(\.path), forKey: Self.recentsKey)
+        guard !isMoving else { return }
+        closeFolder()
+        let root = url.standardizedFileURL.resolvingSymlinksInPath()
+        self.root = root
+        let version = folderVersion
+        do {
+            watcher = try FolderWatcher(root: root) { [weak self] in
+                Task { @MainActor in
+                    guard let self, self.folderVersion == version, !self.isMoving else { return }
+                    self.reload(debounce: true)
+                }
+            }
+            rescan()
+            recents.removeAll { $0.path == root.path }
+            recents.insert(root, at: 0)
+            recents = Array(recents.prefix(6))
+            preferences?.set(recents.map(\.path), forKey: Self.recentsKey)
+        } catch {
+            scanError = "Could not watch \(root.lastPathComponent): \(error.localizedDescription)"
+            show(scanError!, isError: true)
+        }
     }
 
     func closeFolder() {
+        guard !isMoving else { return }
+        folderVersion += 1
+        scanVersion += 1
+        watcher?.stop()
+        watcher = nil
+        scanTask?.cancel()
         root = nil
         items = []
+        isScanning = false
+        scanError = nil
         reset()
     }
 
-    func rescan() {
-        guard let root else { return }
-        do {
-            items = try FolderScanner.scan(root)
-            cache.removeAll()
-        } catch {
-            items = []
-            show("Could not read \(root.lastPathComponent): \(error.localizedDescription)", isError: true)
+    func rescan() { reload(debounce: false) }
+
+    private func reload(debounce: Bool) {
+        guard let root, !isMoving else { return }
+        scanTask?.cancel()
+        scanVersion += 1
+        let version = scanVersion
+        isScanning = true
+        scanError = nil
+        plan = nil
+        gathering.cancel()
+        scanTask = Task { [weak self] in
+            do {
+                if debounce { try await Task.sleep(for: .milliseconds(120)) }
+                try Task.checkCancellation()
+                let snapshot = try await Task.detached(priority: .userInitiated) { try FolderScanner.scan(root) }.value
+                guard let self, !Task.isCancelled, version == scanVersion else { return }
+                items = snapshot
+                isScanning = false
+                classify(immediate: true)
+            } catch {
+                guard let self, !Task.isCancelled, version == scanVersion else { return }
+                items = []
+                isScanning = false
+                gathering.cancel(clear: true)
+                scanError = "Could not read \(root.lastPathComponent): \(error.localizedDescription)"
+                show(scanError!, isError: true)
+            }
         }
     }
 
     // MARK: Typing
 
     func promptChanged(from previous: String) {
-        debounce?.cancel()
-        version += 1
-        let name = prompt.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
-        if name.isEmpty {
-            if memberships.isEmpty { isThinking = false } else { reset(keepPrompt: true) }
-            return
-        }
-        if name.count < 3 {
-            isThinking = false
-            status = "Keep typing. The idea is still too short."
-            return
-        }
-        isThinking = true
-        status = "Updating folder…"
-        let currentVersion = version
+        plan = nil
+        lastResult = nil
         // Space and paste dispatch immediately; unfinished words wait for a short idle gap.
         let immediate = prompt.hasSuffix(" ") || prompt.count - previous.count > 1
-        debounce = Task { [weak self] in
-            if !immediate { try? await Task.sleep(for: .milliseconds(90)) }
-            guard !Task.isCancelled else { return }
-            await self?.classify(name, version: currentVersion)
+        classify(immediate: immediate)
+    }
+
+    func usePreset(_ text: String) { prompt = text }
+
+    private func classify(immediate: Bool) {
+        guard !isScanning, !isMoving, scanError == nil else {
+            gathering.cancel()
+            return
         }
+        gathering.update(prompt: prompt, items: items, apiKey: apiKey, immediate: immediate)
     }
 
-    func usePreset(_ text: String) {
-        let previous = prompt
-        prompt = text
-        promptChanged(from: previous)
-    }
-
-    private func classify(_ name: String, version: Int) async {
-        let started = DispatchTime.now()
-        do {
-            let result: [Membership]
-            if let cached = cache[name] {
-                result = cached
-            } else if mode == .jev, let key = JevClassifier.resolveKey() {
-                result = try await JevClassifier(apiKey: key).classify(folderName: name, items: items)
-            } else {
-                result = local.classify(folderName: name, items: items)
-            }
-            guard version == self.version else { return }
-            cache[name] = result
-            apply(result, elapsed: Int(Double(DispatchTime.now().uptimeNanoseconds - started.uptimeNanoseconds) / 1_000_000))
-        } catch {
-            guard version == self.version else { return }
-            isThinking = false
-            status = error.localizedDescription
-            show(error.localizedDescription, isError: true)
-        }
-    }
-
-    private func apply(_ result: [Membership], elapsed: Int) {
-        let before = Set(memberships.values.filter(\.belongs).map(\.id))
+    func credentialsChanged() {
+        apiKey = Self.normalizedKey(keyProvider())
+        plan = nil
         lastResult = nil
-        memberships = Dictionary(uniqueKeysWithValues: result.map { ($0.id, $0) })
-        let after = Set(result.filter(\.belongs).map(\.id))
-        let joined = after.subtracting(before).count
-        let left = before.subtracting(after).count
-        isThinking = false
-        status = after.isEmpty
-            ? "Nothing matches yet. Try a file type, a topic, or a time."
-            : "\(after.count) \(after.count == 1 ? "item belongs" : "items belong") here · \(elapsed) ms · keep typing to change it"
-        show(before.isEmpty ? "\(after.count) gathered" : "\(joined) joined · \(left) returned")
+        classify(immediate: true)
+    }
+
+    private static func normalizedKey(_ key: String?) -> String? {
+        guard let key = key?.trimmingCharacters(in: .whitespacesAndNewlines), !key.isEmpty else { return nil }
+        return key
     }
 
     func reset(keepPrompt: Bool = false) {
-        debounce?.cancel()
-        version += 1
-        memberships = [:]
+        gathering.cancel(clear: true)
         plan = nil
         lastResult = nil
-        isThinking = false
         if !keepPrompt { prompt = "" }
-        status = "Name the folder. It fills as you type."
+        if !isScanning { classify(immediate: true) }
     }
 
     // MARK: Moving
@@ -171,28 +209,29 @@ final class WorkspaceModel {
         guard let root, canApprove else { return }
         do {
             plan = try ShellMover.plan(root: root, prompt: prompt, items: gathered)
+            planGeneration = gathering.generation
         } catch {
             show(error.localizedDescription, isError: true)
         }
     }
 
     func approve() async {
-        guard let plan else { return }
+        guard let plan, planIsCurrent else { return }
         isMoving = true
-        defer { isMoving = false }
+        gathering.cancel()
         do {
             let result = try await ShellMover.execute(plan)
-            lastResult = result
             self.plan = nil
-            memberships = [:]
             prompt = ""
-            rescan()
-            status = "Moved \(result.moved.count) \(result.moved.count == 1 ? "item" : "items") into \(result.destination.lastPathComponent)."
+            gathering.cancel(clear: true)
+            lastResult = result
             show("\(result.moved.count) moved · \(result.elapsedMilliseconds) ms")
         } catch {
+            self.plan = nil
             show(error.localizedDescription, isError: true)
-            rescan()
         }
+        isMoving = false
+        rescan()
     }
 
     func revealDestination() {

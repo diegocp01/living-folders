@@ -17,7 +17,7 @@ struct ApproveSheet: View {
             }
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 6) {
+                LazyVStack(alignment: .leading, spacing: 6) {
                     ForEach(plan.items) { item in
                         HStack(spacing: 8) {
                             Image(nsImage: NSWorkspace.shared.icon(forFile: item.url.path))
@@ -66,6 +66,7 @@ struct ApproveSheet: View {
                 Button("Cancel") { model.plan = nil }
                     .buttonStyle(PillButtonStyle())
                     .keyboardShortcut(.cancelAction)
+                    .disabled(model.isMoving)
                 Button {
                     Task { await model.approve() }
                 } label: {
@@ -76,12 +77,13 @@ struct ApproveSheet: View {
                 }
                 .buttonStyle(PillButtonStyle(prominent: true))
                 .keyboardShortcut(.defaultAction)
-                .disabled(model.isMoving)
+                .disabled(model.isMoving || !model.planIsCurrent)
             }
         }
         .padding(26)
         .frame(width: 520)
         .background(Backdrop())
         .preferredColorScheme(.light)
+        .interactiveDismissDisabled(model.isMoving)
     }
 }

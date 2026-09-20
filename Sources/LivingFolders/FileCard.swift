@@ -11,15 +11,11 @@ struct FileCard: View {
 
     @State private var hovering = false
 
-    private var icon: NSImage {
-        let image = NSWorkspace.shared.icon(forFile: item.url.path)
-        image.size = NSSize(width: 44, height: 44)
-        return image
-    }
+    @State private var icon: NSImage?
 
     var body: some View {
         VStack(spacing: 6) {
-            Image(nsImage: icon)
+            Image(nsImage: icon ?? NSImage(size: NSSize(width: 44, height: 44)))
                 .resizable()
                 .interpolation(.high)
                 .frame(width: 44, height: 44)
@@ -53,5 +49,10 @@ struct FileCard: View {
         .onHover { hovering = $0 }
         .help("\(item.name)\n\(item.url.path)")
         .accessibilityLabel(item.name)
+        .task(id: item) {
+            let image = NSWorkspace.shared.icon(forFile: item.url.path)
+            image.size = NSSize(width: 44, height: 44)
+            icon = image
+        }
     }
 }

@@ -16,7 +16,6 @@ swift build -c "$CONFIG" --product LivingFolders
 BIN="$(swift build -c "$CONFIG" --show-bin-path)/LivingFolders"
 
 APP=build/LivingFolders.app
-rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/LivingFolders"
 cp Resources/Info.plist "$APP/Contents/Info.plist"

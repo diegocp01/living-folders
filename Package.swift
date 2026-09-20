@@ -12,5 +12,6 @@ let package = Package(
             swiftSettings: [.unsafeFlags(["-parse-as-library"])]
         ),
         .testTarget(name: "LivingFoldersCoreTests", dependencies: ["LivingFoldersCore"]),
+        .testTarget(name: "LivingFoldersTests", dependencies: ["LivingFolders", "LivingFoldersCore"]),
     ]
 )

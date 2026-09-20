@@ -18,6 +18,23 @@ struct LivingFoldersApp: App {
             .animation(Theme.soft, value: model.root == nil)
             .frame(minWidth: 940, minHeight: 620)
             .preferredColorScheme(.light)
+            .alert(
+                model.updateController.notice?.title ?? "",
+                isPresented: Binding(
+                    get: { model.updateController.notice != nil },
+                    set: { if !$0 { model.updateController.notice = nil } }
+                ),
+                presenting: model.updateController.notice
+            ) { notice in
+                if notice.isConfirmation {
+                    Button("Install and Restart") { model.updateController.confirmUpdate() }
+                    Button("Later", role: .cancel) {}
+                } else {
+                    Button("OK", role: .cancel) {}
+                }
+            } message: { notice in
+                Text(notice.message)
+            }
             .onAppear {
                 NSApp.setActivationPolicy(.regular)
                 NSApp.activate(ignoringOtherApps: true)

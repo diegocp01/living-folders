@@ -2,54 +2,63 @@
 
 **What if naming a folder was all you had to do to organize it?**
 
-A Finder-inspired demo powered by Jev. Name a virtual folder in plain language and watch matching files gather as you type. Change a few words and watch them rearrange—no Enter key, no chat, no real files moved.
+A native macOS app. Open a folder, type what you want in plain language, and watch the matching files gather into a new folder as you type. When it looks right, approve — the app runs `/bin/mkdir` and `/bin/mv` and the folder becomes real.
 
-Thirty sample documents, animated file cards, and a translucent desktop window. Built with vanilla JavaScript and a small Python server.
+Built with SwiftUI. No web view, no server, no account.
 
 ## Run
 
-Requires Python 3.10+; Node.js 20+ is only needed for the JavaScript tests.
+Requires macOS 14+ and Xcode 15+ (Swift 5.9).
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python3 -m pip install -r requirements.txt
-python3 server.py
+git clone https://github.com/diegocp01/living-folders
+cd living-folders
+./build.sh --open
 ```
 
-Open <http://127.0.0.1:8787/?offline=1> to try the deterministic preview without credentials or API usage. Offline results use local demo rules, not Jev.
+This produces `build/LivingFolders.app` and launches it. To develop in Xcode, `open Package.swift` and run the `LivingFolders` scheme. You can also open a folder directly:
 
-For live classification, copy `.env.example` to `.env`, add your Jev key, restart the server, and open <http://127.0.0.1:8787>. Typing in live mode sends requests to Jev and may consume API credits. The key stays on the Python server, is excluded from Git, and is unavailable through the static file server.
-
-This is a local demo, bound to `127.0.0.1`. It is not configured as a public hosted service. Only synthetic document metadata is used; the app does not scan your disk.
+```bash
+open build/LivingFolders.app --args ~/Downloads
+```
 
 ## How it works
 
-Space, paste, and preset selection trigger classification immediately. Other edits use a 120 ms idle fallback; Enter is unnecessary. Two requests can run concurrently, with only the latest waiting intent retained. Identical in-flight names share a request, and up to 64 successful results are cached for the page session. Every edit invalidates older UI results. Each request still evaluates all 30 documents in one batch. Card movement lasts 420 ms and avoids forced per-card layout reads. The server reuses its verified TLS context. These are scheduling guarantees, not a measured live Jev latency claim. The shorter idle delay can issue more requests during slow typing.
+1. **Open a folder** (Open Folder…, drag one onto the window, or pick a recent one). The app lists its visible top-level files and folders.
+2. **Name the folder.** Every keystroke reclassifies; a space or paste dispatches instantly, unfinished words wait 90 ms. Cards fly between the desktop and the folder pane in a 300 ms spring.
+3. **Approve.** Press ⌘↩ or click *Move N*. A sheet shows exactly which items will move and the exact shell commands. Nothing runs until you confirm.
 
-For a recorded demo, use the four suggested beats in order:
+The move is:
 
-1. Stuff for my Japan trip
-2. Stuff I need at the airport
-3. Things I downloaded to become a different person
-4. Fine. Just the Python tutorials.
-
-Each update sends one `noul` question per document in a single `jev-latest` request. Jev decides membership and returns a probability. Browser code moves the existing cards so viewers can follow what stayed, joined, or left.
-
-## Test without API usage
-
-```bash
-python3 -m unittest -v
-node --check app.js
-node --test test_scheduler.cjs
+```
+/bin/mkdir -p '<folder you opened>/<name you typed>'
+/bin/mv -n '<item 1>' '<item 2>' … '<folder you opened>/<name you typed>'
 ```
 
-The Python suite mocks the network response and does not call Jev or consume API credit. Use <http://127.0.0.1:8787/?offline=1> for visual QA with deterministic sample classifications.
+`mv -n` never overwrites. Nothing is ever deleted. The name you typed is sanitised into a single path component (`/`, `:` and leading dots are stripped), and the app never moves the destination into itself.
+
+## Classification
+
+**On-device rules (default).** No network. Scores each item from three signals:
+
+- file-type words → extensions (`photos`, `screenshots`, `PDFs`, `installers`, `code`, `music`, …)
+- topic words → filename matches, with synonyms (`trip` → flight, hotel, itinerary, passport…; `taxes` → irs, w2, 1099…)
+- time words → modification date (`today`, `this week`, `last month`, `old`)
+- `folders` / `files` to prefer directories or regular files
+
+**Jev (optional).** Set `TYPESAFE_API_KEY` in the environment or in the app's Settings. Each folder name is then sent to Jev (`jev-latest`, one `noul` question per item) with the names, kinds, and dates of the files in the open folder. This path is implemented but was not exercised against the live API.
+
+## Test
+
+```bash
+swift test
+```
+
+The tests cover the classifier rules, folder-name sanitising, shell quoting, and a real `mkdir` + `mv` run inside a temporary directory.
 
 ## Project files
 
-- `app.js` — sample documents, request scheduling, offline rules, and animation.
-- `style.css` / `index.html` — desktop interface and file artwork.
-- `server.py` — static file allowlist and server-side Jev proxy.
-- `wallpaper.png` — demo desktop background.
-- `test_server.py` / `test_scheduler.cjs` — offline regression tests.
+- `Sources/LivingFoldersCore/` — `FolderScanner`, `LocalClassifier`, `JevClassifier`, `ShellMover` (no UI, fully testable)
+- `Sources/LivingFolders/` — SwiftUI app: welcome screen, card field, prompt bar, approve sheet
+- `Tests/LivingFoldersCoreTests/` — offline tests
+- `build.sh` — assembles `build/LivingFolders.app`

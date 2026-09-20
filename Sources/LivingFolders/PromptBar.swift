@@ -13,12 +13,12 @@ struct PromptBar: View {
 
     var body: some View {
         VStack(spacing: 12) {
+            Text("Name a folder. The right files find it.")
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.secondary)
             HStack(spacing: 12) {
-                Image(systemName: "sparkle")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(model.isThinking ? Theme.accent : Theme.tertiary)
-                    .animation(Theme.soft, value: model.isThinking)
-                TextField("Name a folder in plain language…", text: $model.prompt)
+                FolderGlyph().frame(width: 28, height: 24)
+                TextField("What belongs here?", text: $model.prompt)
                     .textFieldStyle(.plain)
                     .font(.system(size: 17, weight: .regular))
                     .foregroundStyle(Theme.ink)
@@ -49,7 +49,7 @@ struct PromptBar: View {
             .padding(.leading, 18)
             .padding(.trailing, 8)
             .frame(height: 54)
-            .panel(radius: 27, fill: Color.white.opacity(0.7), stroke: focused ? Theme.accent.opacity(0.5) : Theme.hairlineStrong)
+            .panel(radius: 14, fill: Color.white.opacity(0.3), stroke: focused ? Theme.accent.opacity(0.5) : Color.white.opacity(0.7))
             .animation(Theme.soft, value: model.canApprove)
             .animation(Theme.soft, value: model.prompt.isEmpty)
 
@@ -67,6 +67,8 @@ struct PromptBar: View {
                         .foregroundStyle(Theme.accent)
                 }
                 Spacer()
+            }
+            HStack(spacing: 8) {
                 Text("Try").font(.system(size: 11.5)).foregroundStyle(Theme.tertiary)
                 ForEach(Self.presets, id: \.label) { preset in
                     Button(preset.label) { model.usePreset(preset.prompt) }
@@ -75,8 +77,7 @@ struct PromptBar: View {
                         .foregroundStyle(model.prompt == preset.prompt ? Theme.ink : Theme.secondary)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
-                        .background(Capsule().fill(Color.white.opacity(model.prompt == preset.prompt ? 0.75 : 0.4)))
-                        .overlay(Capsule().strokeBorder(Theme.hairlineStrong, lineWidth: 1))
+                        .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(model.prompt == preset.prompt ? 0.25 : 0)))
                 }
             }
             .padding(.horizontal, 6)

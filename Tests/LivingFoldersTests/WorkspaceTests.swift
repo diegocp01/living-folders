@@ -151,4 +151,22 @@ final class WorkspaceTests: XCTestCase {
         while !condition(), ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(10)) }
         XCTAssertTrue(condition(), "Timed out waiting for workspace state")
     }
+
+    func testMissingKeyBlocksGathering() async throws {
+        let model = WorkspaceModel(transport: { _ in
+            XCTFail("transport must not run without a key")
+            throw URLError(.notConnectedToInternet)
+        }, keyProvider: { nil }, openLaunchArgument: false, preferences: nil)
+        XCTAssertFalse(model.hasAPIKey)
+        XCTAssertEqual(model.mode, .missingKey)
+        let root = try directory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try Data().write(to: root.appendingPathComponent("a.txt"))
+        model.open(root)
+        model.prompt = "Trip photos"
+        try await Task.sleep(for: .milliseconds(200))
+        XCTAssertTrue(model.memberships.isEmpty)
+        XCTAssertFalse(model.canApprove)
+        XCTAssertEqual(model.mode, .missingKey)
+    }
 }

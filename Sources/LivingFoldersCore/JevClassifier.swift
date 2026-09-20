@@ -33,7 +33,7 @@ public struct JevClassifier: Sendable {
         if let key = ProcessInfo.processInfo.environment["TYPESAFE_API_KEY"], !key.isEmpty {
             return (key, .environment)
         }
-        if let key = UserDefaults.standard.string(forKey: "TYPESAFE_API_KEY"), !key.isEmpty {
+        if let key = KeychainCredentials.load(), !key.isEmpty {
             return (key, .stored)
         }
         return nil
